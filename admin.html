@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>商家中心 · 邱哥商城</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:system-ui;background:#f2f2f6;padding:16px;padding-bottom:80px;}
+        .card{background:white;border-radius:32px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+        .title{font-size:20px;font-weight:700;margin-bottom:16px;border-left:4px solid #ff6b6b;padding-left:12px;}
+        input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:60px;margin:8px 0;font-size:14px;}
+        .btn{background:#ff6b6b;color:white;border:none;padding:12px;border-radius:60px;width:100%;cursor:pointer;font-size:16px;font-weight:600;}
+        .btn-gray{background:#e9e9ef;color:#333;}
+        .upload-area{border:2px dashed #ddd;border-radius:60px;padding:20px;text-align:center;margin:10px 0;cursor:pointer;background:#fafafc;}
+        .goods-item,.user-item,.order-item{border-bottom:1px solid #eee;padding:12px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+        .goods-item>div:first-child{flex:1;}
+        .image-preview{width:100%;max-height:150px;object-fit:contain;border-radius:24px;margin-top:10px;display:none;}
+        .nav-tab{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.96);backdrop-filter:blur(20px);display:flex;padding:8px 0 16px;border-top:0.5px solid #ddd;max-width:500px;margin:0 auto;z-index:100;}
+        .nav-item{flex:1;text-align:center;font-size:12px;color:#8e8e93;padding:6px 0;cursor:pointer;border-radius:40px;}
+        .nav-item.active{color:#ff6b6b;background:rgba(255,107,107,0.1);}
+        .page{display:none;}
+        .active-page{display:block;}
+        .tracking-input{display:flex;gap:8px;margin-top:8px;}
+        .tracking-input input{flex:1;margin:0;padding:8px;}
+        .tracking-input button{padding:8px 16px;background:#ff6b6b;color:white;border:none;border-radius:60px;cursor:pointer;}
+        .badge{background:#ff6b6b;color:white;border-radius:20px;padding:2px 8px;font-size:12px;margin-left:8px;}
+        .small-btn{border:none;border-radius:20px;padding:4px 10px;margin:2px;cursor:pointer;font-size:12px;}
+        .btn-green{background:#34c759;color:white;}
+        .btn-red{background:#ff6b6b;color:white;}
+        .btn-gray-small{background:#e9e9ef;color:#333;}
+        .loading{text-align:center;padding:20px;color:#999;}
+    </style>
+</head>
+<body>
+<div style="max-width:500px;margin:0 auto;">
+    <div id="goodsPage" class="page active-page">
+        <div class="card">
+            <div class="title">➕ 添加商品</div>
+            <input type="text" id="prodName" placeholder="商品名称">
+            <input type="number" id="prodPrice" placeholder="价格">
+            <div class="upload-area" id="uploadArea">📸 点击上传图片<input type="file" id="imageUpload" accept="image/*" style="display:none;"></div>
+            <img id="imagePreview" class="image-preview">
+            <input type="text" id="prodDesc" placeholder="商品描述">
+            <input type="number" id="prodStock" placeholder="库存" value="99">
+            <button id="addProductBtn" class="btn">上架商品</button>
+        </div>
+        <div class="card">
+            <div class="title">📦 商品管理</div>
+            <div id="goodsList"></div>
+        </div>
+    </div>
+
+    <div id="userPage" class="page">
+        <div class="card">
+            <div class="title">👥 买家管理 <span id="userCount" class="badge">0</span></div>
+            <div id="userList"></div>
+        </div>
+    </div>
+
+    <div id="orderPage" class="page">
+        <div class="card">
+            <div class="title">📋 所有订单</div>
+            <div id="orderList"></div>
+        </div>
+    </div>
+
+    <div class="nav-tab">
+        <div class="nav-item active" data-page="goods">📦 商品</div>
+        <div class="nav-item" data-page="user">👥 买家</div>
+        <div class="nav-item" data-page="order">📋 订单</div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://fikeaggpeyrdozeazrzq.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_SMZZ50gLsJ1agjBehklO_Q_jsD7USPt';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let products = [];
+    let allUsers = [];
+    let uploadedImage = null;
+
+    async function loadData() {
+        try {
+            // 加载商品
+            let { data: pData, error: pError } = await supabase.from('products').select('*').order('id', {ascending: false});
+            if(pError) console.log('商品加载错误:', pError);
+            if(pData && pData.length > 0) {
+                products = pData;
+            } else {
+                // 初始化默认商品
+                products = [
+                    {id:1, name:"线条小狗", price:29, img:"https://picsum.photos/id/20/300/300", desc:"可爱小狗公仔", stock:99, on_shelf:true},
+                    {id:2, name:"情书卷轴", price:8, img:"https://picsum.photos/id/1/300/300", desc:"手写卷轴", stock:99, on_shelf:true},
+                    {id:3, name:"坚果礼盒", price:88, img:"https://picsum.photos/id/108/300/300", desc:"健康零食", stock:99, on_shelf:true}
+                ];
+                for(let p of products) {
+                    await supabase.from('products').upsert(p);
+                }
+            }
+            
+            // 加载用户
+            let { data: uData, error: uError } = await supabase.from('users').select('*');
+            if(uError) console.log('用户加载错误:', uError);
+            if(uData) allUsers = uData;
+            else allUsers = [];
+            
+            renderAll();
+        } catch(e) {
+            console.log('加载错误:', e);
+            document.getElementById('goodsList').innerHTML = '<div class="loading">加载失败，请刷新重试</div>';
+        }
+    }
+
+    function renderAll() {
+        renderGoods();
+        renderUsers();
+        renderOrders();
+    }
+
+    function renderGoods() {
+        let container = document.getElementById('goodsList');
+        if(!container) return;
+        if(products.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px;">暂无商品，点上方添加</div>';
+            return;
+        }
+        container.innerHTML = products.map(p => `
+            <div class="goods-item">
+                <div><img src="${p.img || 'https://picsum.photos/id/42/50/50'}" width="50" height="50" style="border-radius:24px;object-fit:cover;"><br><strong>${p.name || '无名称'}</strong><br>¥${p.price || 0} / 库存:${p.stock || 0}<br>${p.on_shelf ? '✅上架' : '⏸️下架'}</div>
+                <div><button class="small-btn toggle-shelf" data-id="${p.id}" style="border:1px solid #ff6b6b;color:#ff6b6b;background:white;">${p.on_shelf ? '下架' : '上架'}</button><button class="small-btn delete-prod" data-id="${p.id}" style="background:#ff6b6b;color:white;">删除</button></div>
+            </div>
+        `).join('');
+        
+        document.querySelectorAll('.toggle-shelf').forEach(btn => {
+            btn.onclick = async () => {
+                let id = parseInt(btn.dataset.id);
+                let p = products.find(p => p.id === id);
+                if(p) {
+                    p.on_shelf = !p.on_shelf;
+                    await supabase.from('products').update({on_shelf: p.on_shelf}).eq('id', id);
+                    await loadData();
+                }
+            };
+        });
+        
+        document.querySelectorAll('.delete-prod').forEach(btn => {
+            btn.onclick = async () => {
+                if(confirm('确定删除此商品吗？')) {
+                    let id = parseInt(btn.dataset.id);
+                    await supabase.from('products').delete().eq('id', id);
+                    await loadData();
+                }
+            };
+        });
+    }
+
+    function renderUsers() {
+        let container = document.getElementById('userList');
+        if(!container) return;
+        let countSpan = document.getElementById('userCount');
+        if(countSpan) countSpan.innerText = allUsers.length;
+        
+        if(allUsers.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px;">暂无买家，请买家先登录</div>';
+            return;
+        }
+        
+        container.innerHTML = allUsers.map(u => `
+            <div class="user-item">
+                <div><strong>📱 ${u.phone || '未知'}</strong><br>💰 余额: ¥${(u.balance || 0).toFixed(2)}<br>📦 订单: ${(u.orders || []).length}</div>
+                <div><button class="small-btn btn-green add-balance" data-phone="${u.phone}">➕充值</button><button class="small-btn btn-red sub-balance" data-phone="${u.phone}">➖扣除</button></div>
+            </div>
+        `).join('');
+        
+        document.querySelectorAll('.add-balance').forEach(btn => {
+            btn.onclick = async () => {
+                let amount = prompt('输入充值金额(元):');
+                if(amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+                    let user = allUsers.find(u => u.phone === btn.dataset.phone);
+                    if(user) {
+                        user.balance = (user.balance || 0) + parseFloat(amount);
+                        await supabase.from('users').update({balance: user.balance}).eq('phone', user.phone);
+                        await loadData();
+                        alert(`充值成功！当前余额: ¥${user.balance.toFixed(2)}`);
+                    }
+                } else { alert('请输入有效金额'); }
+            };
+        });
+        
+        document.querySelectorAll('.sub-balance').forEach(btn => {
+            btn.onclick = async () => {
+                let amount = prompt('输入扣除金额(元):');
+                if(amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+                    let user = allUsers.find(u => u.phone === btn.dataset.phone);
+                    if(user) {
+                        if((user.balance || 0) >= parseFloat(amount)) {
+                            user.balance -= parseFloat(amount);
+                            await supabase.from('users').update({balance: user.balance}).eq('phone', user.phone);
+                            await loadData();
+                            alert(`扣除成功！当前余额: ¥${user.balance.toFixed(2)}`);
+                        } else { alert('余额不足'); }
+                    }
+                } else { alert('请输入有效金额'); }
+            };
+        });
+    }
+
+    async function renderOrders() {
+        let container = document.getElementById('orderList');
+        if(!container) return;
+        
+        let allOrders = [];
+        for(let user of allUsers) {
+            if(user.orders && Array.isArray(user.orders)) {
+                for(let order of user.orders) {
+                    allOrders.push({...order, userPhone: user.phone});
+                }
+            }
+        }
+        allOrders.sort((a,b) => (b.id || 0) - (a.id || 0));
+        
+        if(allOrders.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:#aaa;padding:20px;">暂无订单</div>';
+            return;
+        }
+        
+        container.innerHTML = allOrders.map(order => `
+            <div class="order-item" style="flex-direction:column;align-items:flex-start;">
+                <div><strong>买家：${order.userPhone}</strong> | 订单号：${order.id}<br>时间：${order.createTime || '未知'}<br>金额：¥${order.total || 0}<br>状态：${order.status || '待发货'}</div>
+                <div>商品：${(order.items || []).map(it => { let p = products.find(pr => pr.id == it.productId); return `${p?.name || '商品'} x${it.quantity}`; }).join(', ') || '无'}</div>
+                ${order.status === '待发货' ? `<div class="tracking-input"><input type="text" id="track_${order.id}" placeholder="输入快递单号"><button class="shipBtn" data-id="${order.id}" data-phone="${order.userPhone}">发货</button></div>` : (order.tracking ? `<div>📦 单号：${order.tracking}</div>` : '')}
+            </div>
+        `).join('');
+        
+        document.querySelectorAll('.shipBtn').forEach(btn => {
+            btn.onclick = async () => {
+                let oid = parseInt(btn.dataset.id);
+                let phone = btn.dataset.phone;
+                let tracking = document.getElementById(`track_${oid}`).value;
+                if(!tracking) { alert('请输入快递单号'); return; }
+                let user = allUsers.find(u => u.phone === phone);
+                if(user && user.orders) {
+                    let order = user.orders.find(o => o.id === oid);
+                    if(order) {
+                        order.status = '已发货';
+                        order.tracking = tracking;
+                        await supabase.from('users').update({orders: user.orders}).eq('phone', phone);
+                        await loadData();
+                        alert('发货成功！');
+                    }
+                }
+            };
+        });
+    }
+
+    document.getElementById('addProductBtn')?.addEventListener('click', async () => {
+        let name = document.getElementById('prodName').value.trim();
+        let price = parseFloat(document.getElementById('prodPrice').value);
+        let desc = document.getElementById('prodDesc').value.trim();
+        let stock = parseInt(document.getElementById('prodStock').value) || 0;
+        
+        if(!name || isNaN(price)) { alert('请填写商品名称和价格'); return; }
+        
+        let img = uploadedImage || 'https://picsum.photos/id/42/200/200';
+        let newId = Date.now();
+        let newProduct = {
+            id: newId,
+            name: name,
+            price: price,
+            img: img,
+            desc: desc || '好物推荐',
+            stock: stock,
+            on_shelf: true
+        };
+        
+        await supabase.from('products').insert(newProduct);
+        await loadData();
+        alert('商品已上架');
+        
+        document.getElementById('prodName').value = '';
+        document.getElementById('prodPrice').value = '';
+        document.getElementById('prodDesc').value = '';
+        document.getElementById('prodStock').value = '99';
+        uploadedImage = null;
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('imageUpload').value = '';
+    });
+
+    document.getElementById('uploadArea')?.addEventListener('click', () => document.getElementById('imageUpload').click());
+    document.getElementById('imageUpload')?.addEventListener('change', (e) => {
+        let file = e.target.files[0];
+        if(file) {
+            let reader = new FileReader();
+            reader.onload = ev => {
+                uploadedImage = ev.target.result;
+                document.getElementById('imagePreview').src = uploadedImage;
+                document.getElementById('imagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById(btn.dataset.page + 'Page').classList.add('active-page');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            btn.classList.add('active');
+            if(btn.dataset.page === 'user') renderUsers();
+            if(btn.dataset.page === 'order') renderOrders();
+            if(btn.dataset.page === 'goods') renderGoods();
+        });
+    });
+
+    loadData();
+</script>
+</body>
+</html>
