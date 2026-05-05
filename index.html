@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>邱哥商城 · 商家买家一体版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: system-ui, 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            background: #f2f2f6;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #f8f9fc;
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 70px;
+        }
+
+        /* 启动动画 */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #FF8C42, #FF3B3F, #FF6F61);
+            background-size: 200% 200%;
+            animation: gradientShift 1.5s ease, splashFadeOut 1.5s forwards;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        @keyframes splashFadeOut {
+            0% { opacity: 1; visibility: visible; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+        .splash-dots {
+            display: flex;
+            gap: 20px;
+        }
+        .splash-dot {
+            width: 20px;
+            height: 20px;
+            background: rgba(255,255,240,0.9);
+            border-radius: 60px;
+            animation: bounce 0.6s infinite alternate;
+        }
+        .splash-dot:nth-child(2) { animation-delay: 0.2s; width: 28px; height: 28px; background: #FFEAA7; }
+        .splash-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            from { transform: translateY(0px); opacity: 0.6; }
+            to { transform: translateY(-20px); opacity: 1; }
+        }
+
+        /* 页面切换 */
+        .page { display: none; }
+        .active-page { display: block; }
+
+        /* 公共组件 */
+        .search-header {
+            position: sticky;
+            top: 0;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(12px);
+            padding: 12px 16px;
+            z-index: 100;
+        }
+        .search-box {
+            background: #f1f3f7;
+            border-radius: 60px;
+            padding: 10px 18px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            outline: none;
+        }
+        .goods-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            padding: 14px;
+        }
+        .goods-card {
+            background: white;
+            border-radius: 32px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            transition: 0.2s;
+            cursor: pointer;
+        }
+        .goods-card:active { transform: scale(0.97); }
+        .goods-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+        .goods-info { padding: 12px; }
+        .goods-name {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .goods-price {
+            color: #ff3b30;
+            font-weight: 700;
+            font-size: 16px;
+            margin: 6px 0;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-cart, .btn-buy {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            border-radius: 60px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-cart {
+            background: #fff0ee;
+            color: #ff6b6b;
+        }
+        .btn-buy {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        /* 底部导航 */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 16px;
+            border-top: 0.5px solid rgba(0,0,0,0.05);
+            border-radius: 32px 32px 0 0;
+            z-index: 999;
+        }
+        .nav-item {
+            text-align: center;
+            font-size: 12px;
+            color: #8e8e93;
+            flex: 1;
+            padding: 4px 0;
+            border-radius: 40px;
+            cursor: pointer;
+        }
+        .nav-item.active {
+            color: #ff6b6b;
+            background: rgba(255,107,107,0.1);
+        }
+
+        /* 角色切换栏 */
+        .role-switch {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            background: white;
+            border-bottom: 0.5px solid #eee;
+        }
+        .role-btn {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            background: #f1f3f7;
+            color: #666;
+            border: none;
+        }
+        .role-btn.active {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        /* 弹窗 */
+        .modal-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.2s;
+        }
+        .modal-mask.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        .detail-card {
+            background: white;
+            width: 85%;
+            max-width: 360px;
+            border-radius: 56px;
+            overflow: hidden;
+        }
+        .detail-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+        .detail-content { padding: 20px; }
+        .detail-name { font-weight: 700; font-size: 20px; margin-bottom: 4px; }
+        .detail-price { color: #ff3b30; font-size: 26px; font-weight: 800; margin: 8px 0; }
+        .detail-desc { color: #6c6c70; font-size: 14px; margin-bottom: 20px; line-height: 1.5; white-space: pre-wrap; }
+        .detail-actions { display: flex; gap: 14px; }
+        .detail-actions button { flex: 1; padding: 14px 0; border-radius: 60px; border: none; font-weight: 600; cursor: pointer; }
+
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            visibility: hidden;
+            opacity: 0;
+        }
+        .custom-modal.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        .custom-modal-content {
+            background: white;
+            width: 80%;
+            max-width: 320px;
+            border-radius: 56px;
+            text-align: center;
+            padding: 24px 20px;
+        }
+        .custom-modal-message { font-size: 16px; margin-bottom: 20px; color: #1c1c1e; }
+        .custom-modal-input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 60px;
+            border: 1px solid #ddd;
+            margin: 12px 0;
+            font-size: 16px;
+            text-align: center;
+        }
+        .custom-modal-buttons { display: flex; gap: 12px; margin-top: 8px; }
+        .custom-modal-btn { flex: 1; padding: 12px; border-radius: 60px; border: none; font-weight: 600; cursor: pointer; }
+        .custom-modal-btn.confirm { background: #ff6b6b; color: white; }
+        .custom-modal-btn.cancel { background: #e9e9ef; color: #1c1c1e; }
+
+        /* 买家端样式 */
+        .cart-item, .order-card {
+            background: white;
+            margin: 12px 16px;
+            padding: 14px;
+            border-radius: 28px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+        .cart-img {
+            width: 70px;
+            height: 70px;
+            border-radius: 24px;
+            object-fit: cover;
+        }
+        .remove-btn {
+            background: #ffe7e5;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 60px;
+            color: #ff3b30;
+            cursor: pointer;
+        }
+        .badge {
+            background: #ff6b6b;
+            color: white;
+            border-radius: 60px;
+            padding: 2px 8px;
+            font-size: 11px;
+            margin-left: 6px;
+        }
+        .empty-tip {
+            text-align: center;
+            margin-top: 70px;
+            color: #aaa;
+        }
+        .balance-card {
+            background: linear-gradient(135deg, #FFEAA7, #FFD93D);
+            border-radius: 32px;
+            padding: 12px 20px;
+            margin: 0 16px 16px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .balance-amount {
+            font-size: 24px;
+            font-weight: 800;
+            color: #D45A00;
+        }
+        .signin-btn {
+            background: linear-gradient(135deg, #FF8C42, #FF6F61);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* 商家端样式 */
+        .admin-container { padding: 16px; }
+        .admin-section {
+            background: white;
+            border-radius: 40px;
+            margin-bottom: 24px;
+            padding: 20px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-left: 4px solid #ff6b6b;
+            padding-left: 12px;
+        }
+        .image-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 60px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+            cursor: pointer;
+            background: #fafafc;
+        }
+        .image-preview {
+            width: 100%;
+            max-height: 150px;
+            object-fit: contain;
+            border-radius: 40px;
+            margin-top: 10px;
+            display: none;
+        }
+        .admin-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 60px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+        .goods-admin-item {
+            display: flex;
+            gap: 12px;
+            border-bottom: 1px solid #eee;
+            padding: 14px 0;
+            align-items: center;
+        }
+        .order-admin-item {
+            background: #f9f9fc;
+            border-radius: 28px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .tracking-input {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+        .tracking-input input { flex: 1; padding: 8px 12px; border-radius: 60px; border: 1px solid #ddd; }
+        .tracking-input button { padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 60px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="splash-screen">
+    <div class="splash-dots"><div class="splash-dot"></div><div class="splash-dot"></div><div class="splash-dot"></div></div>
+</div>
+
+<div class="app-container" id="app">
+    <!-- 角色切换栏 -->
+    <div class="role-switch">
+        <button class="role-btn" data-role="buyer">🛒 买家模式</button>
+        <button class="role-btn" data-role="admin">🔧 商家模式</button>
+    </div>
+
+    <!-- ==================== 买家端 ==================== -->
+    <div id="buyerPage" class="page active-page">
+        <div id="buyerHomePage" class="subpage active-page">
+            <div class="search-header">
+                <div class="search-box"><span>🔍</span><input type="text" id="searchInput" placeholder="搜你喜欢的商品..."></div>
+            </div>
+            <div id="goodsListContainer" class="goods-grid"></div>
+        </div>
+        <div id="buyerProfilePage" class="subpage" style="display:none;">
+            <div style="padding: 24px 20px 12px; background: white; border-radius: 0 0 40px 40px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: 22px;">👤 我的</h3>
+                    <button id="signinBtn" class="signin-btn">🎁 每日签到</button>
+                </div>
+                <div class="balance-card">
+                    <span class="balance-label">💰 我的余额</span>
+                    <span class="balance-amount" id="balanceAmount">¥0.00</span>
+                </div>
+                <div style="display: flex; gap: 16px; margin-top: 8px;">
+                    <div id="myCartBtn" style="flex:1; background:#fff2f0; padding:12px; border-radius:60px; text-align:center; cursor:pointer;">🛒 购物车 <span id="cartCountBadge" class="badge">0</span></div>
+                    <div id="myOrdersBtn" style="flex:1; background:#f0f0f4; padding:12px; border-radius:60px; text-align:center; cursor:pointer;">📦 待收货</div>
+                </div>
+            </div>
+            <div id="cartDetailArea" style="margin-top: 16px;"></div>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item" data-subpage="buyerHome">🏠 首页</div>
+            <div class="nav-item" data-subpage="buyerProfile">👤 我的</div>
+        </div>
+    </div>
+
+    <!-- ==================== 商家端 ==================== -->
+    <div id="adminPage" class="page" style="display:none;">
+        <div class="admin-container">
+            <div class="admin-section"><div class="section-title">➕ 添加商品</div>
+                <input type="text" id="prodName" placeholder="商品名称">
+                <input type="number" id="prodPrice" placeholder="价格 (¥)">
+                <div class="image-upload-area" id="uploadArea"><span>📸 点击上传商品图片</span><input type="file" id="imageUpload" accept="image/*" style="display:none;"><img id="imagePreview" class="image-preview"></div>
+                <textarea id="prodDesc" rows="2" placeholder="商品简介 (支持换行)"></textarea>
+                <input type="number" id="prodStock" placeholder="库存数量" value="20">
+                <button id="addProductBtn" class="admin-btn">+ 上架商品</button>
+            </div>
+            <div class="admin-section"><div class="section-title">💰 管理买家余额</div>
+                <div style="background:#f8f8fc; border-radius: 28px; padding: 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span>当前买家余额</span>
+                        <span id="adminBalanceDisplay" style="font-weight: 700; color: #ff6b6b;">¥0.00</span>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <input type="number" id="balanceAmountInput" placeholder="金额" style="flex:2;">
+                        <button id="addBalanceBtn" class="admin-btn" style="margin-top:0; flex:1; padding:12px;">➕ 增加</button>
+                        <button id="subBalanceBtn" class="admin-btn" style="margin-top:0; flex:1; padding:12px; background:#888;">➖ 扣除</button>
+                    </div>
+                </div>
+            </div>
+            <div class="admin-section"><div class="section-title">📢 发布公告</div>
+                <input type="text" id="announceText" placeholder="输入公告内容">
+                <button id="postAnnounceBtn" class="admin-btn">📣 发布</button>
+                <div id="announceList" style="margin-top: 12px; background:#f8f8fc; border-radius: 28px; padding:12px;"></div>
+            </div>
+            <div class="admin-section"><div class="section-title">📦 商品管理</div>
+                <div id="adminGoodsList"></div>
+            </div>
+            <div class="admin-section"><div class="section-title">📋 买家订单 & 填写单号</div>
+                <div id="adminOrdersList"></div>
+            </div>
+        </div>
+        <div class="bottom-nav" style="position: relative; margin-top: 20px;">
+            <div class="nav-item" data-subpage="" style="pointer-events:none;">⚙️ 商家中心</div>
+        </div>
+    </div>
+</div>
+
+<!-- 商品详情弹窗 -->
+<div id="detailModal" class="modal-mask">
+    <div class="detail-card">
+        <img id="modalImg" class="detail-img">
+        <div class="detail-content">
+            <div id="modalName" class="detail-name"></div>
+            <div id="modalPrice" class="detail-price"></div>
+            <div id="modalDesc" class="detail-desc"></div>
+            <div class="detail-actions">
+                <button id="modalAddCart" style="background:#fff0ee; color:#ff6b6b;">🛒 购物车</button>
+                <button id="modalBuyNow" style="background:#ff6b6b; color:white;">⚡ 立即购买</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义弹窗 -->
+<div id="customModal" class="custom-modal">
+    <div class="custom-modal-content">
+        <div id="customModalMsg" class="custom-modal-message"></div>
+        <input type="text" id="customModalInput" class="custom-modal-input" style="display:none;" placeholder="请输入数量">
+        <div class="custom-modal-buttons">
+            <button id="customModalConfirm" class="custom-modal-btn confirm">确定</button>
+            <button id="customModalCancel" class="custom-modal-btn cancel" style="display:none;">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== 数据存储 (共用同一个localStorage) ====================
+    let products = JSON.parse(localStorage.getItem('qg_products') || JSON.stringify([
+        { id: "p1", name: "线条小狗系列", price: 29, img: "https://picsum.photos/id/20/300/300", desc: "可爱线条小狗公仔\n毛绒玩具手感柔软", stock: 35, onShelf: true },
+        { id: "p2", name: "情书手写信卷轴", price: 8, img: "https://picsum.photos/id/1/300/300", desc: "插画已绘好留白方便书写\n卷轴：32*110cm\n画芯：32*85cm", stock: 20, onShelf: true },
+        { id: "p3", name: "每日坚果礼盒", price: 88, img: "https://picsum.photos/id/108/300/300", desc: "健康零食\n混合坚果", stock: 50, onShelf: true }
+    ]));
+    let cart = JSON.parse(localStorage.getItem('qg_cart') || '[]');
+    let orders = JSON.parse(localStorage.getItem('qg_orders') || '[]');
+    let announcements = JSON.parse(localStorage.getItem('qg_announce') || '["🎉 全场包邮，新品尝鲜！", "✨ 每日秒杀"]');
+    let buyerBalance = JSON.parse(localStorage.getItem('qg_balance') || '1000.00');
+    let lastSignDate = localStorage.getItem('qg_lastSign') || '';
+    let uploadedImage = null;
+    let currentModalProduct = null;
+
+    function saveAll() {
+        localStorage.setItem('qg_products', JSON.stringify(products));
+        localStorage.setItem('qg_cart', JSON.stringify(cart));
+        localStorage.setItem('qg_orders', JSON.stringify(orders));
+        localStorage.setItem('qg_announce', JSON.stringify(announcements));
+        localStorage.setItem('qg_balance', JSON.stringify(buyerBalance));
+        localStorage.setItem('qg_lastSign', lastSignDate);
+        if(document.getElementById('buyerPage').style.display !== 'none') {
+            renderHome();
+            updateBalanceDisplay();
+            renderCartArea();
+            updateBadge();
+            checkAndUpdateSignButton();
+        } else {
+            renderAdminGoods();
+            renderAdminOrders();
+            renderAnnouncements();
+            document.getElementById('adminBalanceDisplay').innerText = '¥' + buyerBalance.toFixed(2);
+        }
+    }
+
+    function getTodayStr() { return new Date().toISOString().slice(0,10); }
+
+    function checkAndUpdateSignButton() {
+        let signBtn = document.getElementById("signinBtn");
+        if(!signBtn) return;
+        let today = getTodayStr();
+        if(lastSignDate === today) {
+            signBtn.innerText = "✅ 今日已签到";
+            signBtn.disabled = true;
+            signBtn.style.opacity = "0.6";
+            signBtn.style.background = "#ccc";
+        } else {
+            signBtn.innerText = "🎁 每日签到";
+            signBtn.disabled = false;
+            signBtn.style.opacity = "1";
+            signBtn.style.background = "linear-gradient(135deg, #FF8C42, #FF6F61)";
+        }
+    }
+
+    function doSignIn() {
+        let today = getTodayStr();
+        if(lastSignDate === today) { customAlert("今日已经签到过了！明天再来吧~"); return false; }
+        let randomAmount = (Math.random() * (2 - 0.01) + 0.01).toFixed(2);
+        let addAmount = parseFloat(randomAmount);
+        buyerBalance += addAmount;
+        buyerBalance = Math.round(buyerBalance * 100) / 100;
+        lastSignDate = today;
+        saveAll();
+        updateBalanceDisplay();
+        customAlert(`🎉 签到成功！获得 ¥${addAmount.toFixed(2)} 奖励！\n当前余额: ¥${buyerBalance.toFixed(2)}`);
+        checkAndUpdateSignButton();
+        return true;
+    }
+
+    function updateBalanceDisplay() {
+        let balanceSpan = document.getElementById("balanceAmount");
+        if(balanceSpan) balanceSpan.innerText = "¥" + buyerBalance.toFixed(2);
+        let adminBalanceSpan = document.getElementById("adminBalanceDisplay");
+        if(adminBalanceSpan) adminBalanceSpan.innerText = "¥" + buyerBalance.toFixed(2);
+    }
+
+    function modifyBalance(amount, isAdd) {
+        let change = Math.abs(amount);
+        if (!isAdd) change = -change;
+        let newBalance = buyerBalance + change;
+        if (newBalance < 0) { customAlert("余额不能为负数"); return false; }
+        buyerBalance = newBalance;
+        saveAll();
+        updateBalanceDisplay();
+        customAlert(isAdd ? `成功增加 ¥${amount}` : `成功扣除 ¥${amount}`);
+        return true;
+    }
+
+    function customAlert(msg, callback) {
+        let modal = document.getElementById("customModal");
+        let msgDiv = document.getElementById("customModalMsg");
+        let inputDiv = document.getElementById("customModalInput");
+        let confirmBtn = document.getElementById("customModalConfirm");
+        let cancelBtn = document.getElementById("customModalCancel");
+        inputDiv.style.display = "none";
+        cancelBtn.style.display = "none";
+        msgDiv.innerText = msg;
+        modal.classList.add("show");
+        let onConfirm = () => { modal.classList.remove("show"); confirmBtn.removeEventListener("click", onConfirm); if(callback) callback(null); };
+        confirmBtn.addEventListener("click", onConfirm, { once: true });
+    }
+
+    function customPrompt(msg, defaultVal, callback) {
+        let modal = document.getElementById("customModal");
+        let msgDiv = document.getElementById("customModalMsg");
+        let inputDiv = document.getElementById("customModalInput");
+        let confirmBtn = document.getElementById("customModalConfirm");
+        let cancelBtn = document.getElementById("customModalCancel");
+        inputDiv.style.display = "block";
+        cancelBtn.style.display = "block";
+        inputDiv.value = defaultVal;
+        msgDiv.innerText = msg;
+        modal.classList.add("show");
+        let onConfirm = () => { modal.classList.remove("show"); callback(inputDiv.value); };
+        let onCancel = () => { modal.classList.remove("show"); callback(null); };
+        confirmBtn.addEventListener("click", onConfirm, { once: true });
+        cancelBtn.addEventListener("click", onCancel, { once: true });
+    }
+
+    // ==================== 买家端函数 ====================
+    function renderHome() {
+        let keyword = document.getElementById("searchInput")?.value.toLowerCase() || "";
+        let filtered = products.filter(p => p.onShelf && (p.name.includes(keyword) || p.desc.includes(keyword)));
+        let container = document.getElementById("goodsListContainer");
+        if(!container) return;
+        container.innerHTML = filtered.map(p => `
+            <div class="goods-card" data-id="${p.id}">
+                <img class="goods-img" src="${p.img}" onerror="this.src='https://picsum.photos/id/26/200/200'">
+                <div class="goods-info">
+                    <div class="goods-name">${p.name}</div>
+                    <div class="goods-price">¥${p.price}</div>
+                    <div class="action-buttons">
+                        <button class="btn-cart" data-id="${p.id}">🛒 购物车</button>
+                        <button class="btn-buy" data-id="${p.id}">⚡ 立即购买</button>
+                    </div>
+                </div>
+            </div>
+        `).join("");
+        document.querySelectorAll(".goods-card").forEach(card => {
+            let pid = card.getAttribute("data-id");
+            card.querySelector(".goods-img")?.addEventListener("click", (e) => { e.stopPropagation(); openProductDetail(pid); });
+            card.querySelector(".btn-cart")?.addEventListener("click", (e) => { e.stopPropagation(); addToCartById(pid); customAlert("✔ 已加入购物车"); renderCartArea(); updateBadge(); });
+            card.querySelector(".btn-buy")?.addEventListener("click", (e) => { e.stopPropagation(); directBuy(pid); });
+        });
+        updateBadge();
+    }
+
+    function openProductDetail(pid) {
+        let product = products.find(p=>p.id===pid);
+        if(!product) return;
+        currentModalProduct = product;
+        document.getElementById("modalImg").src = product.img;
+        document.getElementById("modalName").innerText = product.name;
+        document.getElementById("modalPrice").innerHTML = `¥${product.price}`;
+        document.getElementById("modalDesc").innerHTML = product.desc.replace(/\n/g, '<br>');
+        document.getElementById("detailModal").classList.add("show");
+    }
+
+    function addToCartById(pid, qty=1) {
+        let exist = cart.find(i=>i.productId===pid);
+        if(exist) exist.quantity += qty;
+        else cart.push({ productId: pid, quantity: qty });
+        saveAll(); updateBadge(); renderCartArea();
+    }
+
+    function updateBadge() {
+        let total = cart.reduce((s,i)=>s+i.quantity,0);
+        let badge = document.getElementById("cartCountBadge");
+        if(badge) badge.innerText = total;
+    }
+
+    function renderCartArea() {
+        let area = document.getElementById("cartDetailArea");
+        if(!area) return;
+        if(cart.length === 0) { area.innerHTML = `<div class="empty-tip">🛍️ 购物车空空如也</div>`; return; }
+        let totalPrice = 0;
+        let html = '';
+        cart.forEach(item => {
+            let prod = products.find(p => p.id === item.productId);
+            if(prod) {
+                totalPrice += prod.price * item.quantity;
+                html += `<div class="cart-item"><img class="cart-img" src="${prod.img}"><div class="cart-info" style="flex:1"><strong>${prod.name}</strong><div>¥${prod.price} × ${item.quantity}</div></div><button class="remove-btn" data-id="${item.productId}">删除</button></div>`;
+            }
+        });
+        html += `<div style="margin:16px; text-align:center;"><div style="font-weight:600;">合计: ¥${totalPrice}</div><button id="checkoutBtn" style="background:#ff6b6b; border:none; border-radius:60px; padding:12px 24px; margin-top:12px; color:white;">去结算</button></div>`;
+        area.innerHTML = html;
+        document.querySelectorAll(".remove-btn").forEach(btn => {
+            btn.onclick = () => { cart = cart.filter(c=>c.productId !== btn.dataset.id); saveAll(); renderCartArea(); updateBadge(); renderHome(); };
+        });
+        document.getElementById("checkoutBtn")?.addEventListener("click", () => {
+            if(cart.length===0) return;
+            let total = cart.reduce((sum,item) => { let p = products.find(pr=>pr.id===item.productId); return sum + (p.price * item.quantity); },0);
+            if(buyerBalance < total) { customAlert(`余额不足！当前余额 ¥${buyerBalance.toFixed(2)}，需要 ¥${total.toFixed(2)}`); return; }
+            buyerBalance -= total;
+            let newOrder = { id: Date.now(), items: [...cart], status: "待收货", total: total, trackingNumber: "", createTime: new Date().toLocaleString() };
+            orders.unshift(newOrder);
+            cart = [];
+            saveAll();
+            updateBalanceDisplay();
+            customAlert(`✅ 下单成功！支付 ¥${total.toFixed(2)}，剩余余额 ¥${buyerBalance.toFixed(2)}`);
+            renderCartArea(); updateBadge(); renderHome(); renderProfileOrders();
+        });
+    }
+
+    function directBuy(pid) {
+        let product = products.find(p=>p.id===pid);
+        if(!product) return;
+        customPrompt(`⚡ 立即购买 - ${product.name}\n单价 ¥${product.price}\n请输入数量 (库存${product.stock})`, "1", (val) => {
+            if(val && !isNaN(parseInt(val)) && parseInt(val)>0) {
+                let buyQty = parseInt(val);
+                if(buyQty > product.stock) { customAlert(`库存不足`); return; }
+                let total = product.price * buyQty;
+                if(buyerBalance < total) { customAlert(`余额不足！当前余额 ¥${buyerBalance.toFixed(2)}，需要 ¥${total.toFixed(2)}`); return; }
+                buyerBalance -= total;
+                let orderItems = [{ productId: pid, quantity: buyQty }];
+                let newOrder = { id: Date.now(), items: orderItems, status: "待收货", total: total, trackingNumber: "", createTime: new Date().toLocaleString() };
+                orders.unshift(newOrder);
+                saveAll();
+                updateBalanceDisplay();
+                customAlert(`🎉 购买成功！支付 ¥${total.toFixed(2)}，剩余余额 ¥${buyerBalance.toFixed(2)}`);
+                renderProfileOrders();
+            } else if(val !== null) customAlert("请输入有效数量");
+        });
+    }
+
+    function renderProfileOrders() {
+        let area = document.getElementById("cartDetailArea");
+        let pending = orders.filter(o => o.status === "待收货");
+        if(pending.length === 0) { area.innerHTML = `<div class="empty-tip">📭 暂无待收货订单</div>`; return; }
+        let html = `<div style="margin:0 12px;"><h4 style="margin-bottom:12px;">📬 待收货订单</h4>`;
+        pending.forEach(order => {
+            html += `<div class="order-card" style="flex-direction:column; align-items:flex-start; gap:10px;"><div>🆔 订单号: ${order.id}</div>`;
+            order.items.forEach(it => {
+                let prod = products.find(p=>p.id===it.productId);
+                html += `<div>📦 ${prod?.name || "商品"} x ${it.quantity}  ¥${(prod?.price||0) * it.quantity}</div>`;
+            });
+            html += `<div><strong>总计: ¥${order.total}</strong></div>`;
+            if(order.trackingNumber && order.trackingNumber !== "") {
+                html += `<div style="background:#eef2ff; padding:8px 12px; border-radius:40px; font-size:13px;">📦 物流单号: ${order.trackingNumber}</div>`;
+            } else {
+                html += `<div style="color:#ff9f0a;">⏳ 商家暂未填写单号，请耐心等待</div>`;
+            }
+            html += `<div style="color:#ff6b6b;">状态: 待收货</div>
+                     <button class="confirmReceiptBtn" data-id="${order.id}" style="background:#34c759; border:none; border-radius:40px; padding:8px 20px; color:white;">确认收货</button>
+                     </div>`;
+        });
+        area.innerHTML = html + `</div>`;
+        document.querySelectorAll(".confirmReceiptBtn").forEach(btn => {
+            btn.onclick = () => {
+                let oid = parseInt(btn.dataset.id);
+                let ord = orders.find(o=>o.id===oid);
+                if(ord) ord.status = "已完成";
+                saveAll();
+                renderProfileOrders();
+                customAlert("已确认收货");
+            };
+        });
+    }
+
+    // ==================== 商家端函数 ====================
+    function renderAdminOrders() {
+        let container = document.getElementById("adminOrdersList");
+        if(!container) return;
+        if(orders.length === 0) { container.innerHTML = `<div style="padding:16px; text-align:center; color:#aaa;">暂无买家订单</div>`; return; }
+        let html = "";
+        orders.forEach(order => {
+            html += `<div class="order-admin-item">
+                        <div><strong>订单号:</strong> ${order.id}</div>
+                        <div><strong>时间:</strong> ${order.createTime}</div>
+                        <div><strong>总金额:</strong> ¥${order.total}</div>
+                        <div><strong>状态:</strong> ${order.status}</div>
+                        <div><strong>商品明细:</strong> ${order.items.map(it => { let p=products.find(pr=>pr.id===it.productId); return `${p?.name} x${it.quantity}`; }).join(', ')}</div>
+                        <div><strong>当前物流单号:</strong> ${order.trackingNumber || "未填写"}</div>
+                        <div class="tracking-input">
+                            <input type="text" id="tracking_${order.id}" placeholder="输入快递单号" value="${order.trackingNumber || ''}" style="flex:1; margin:0;">
+                            <button class="saveTrackingBtn" data-id="${order.id}" style="background:#ff6b6b; border:none; border-radius:60px; padding:10px 18px; color:white;">保存单号</button>
+                        </div>
+                    </div>`;
+        });
+        container.innerHTML = html;
+        document.querySelectorAll(".saveTrackingBtn").forEach(btn => {
+            btn.onclick = () => {
+                let oid = parseInt(btn.dataset.id);
+                let input = document.getElementById(`tracking_${oid}`);
+                let newTracking = input.value.trim();
+                let order = orders.find(o => o.id === oid);
+                if(order) {
+                    order.trackingNumber = newTracking;
+                    saveAll();
+                    customAlert("物流单号已保存，买家可查看");
+                    renderAdminOrders();
+                    renderProfileOrders();
+                }
+            };
+        });
+    }
+
+    function renderAdminGoods() {
+        let container = document.getElementById("adminGoodsList");
+        if(!container) return;
+        container.innerHTML = products.map(p => `
+            <div class="goods-admin-item">
+                <img src="${p.img}" width="48" height="48" style="border-radius: 24px; object-fit:cover;">
+                <div style="flex:1"><strong>${p.name}</strong> ¥${p.price} 库存:${p.stock} ${p.onShelf ? "上架" : "下架"}</div>
+                <div><button class="editProdBtn" data-id="${p.id}" style="border-radius:40px; padding:6px 12px;">✏️</button>
+                <button class="toggleShelfBtn" data-id="${p.id}" style="border-radius:40px; padding:6px 12px;">${p.onShelf?"下架":"上架"}</button>
+                <button class="delProdBtn" data-id="${p.id}" style="border-radius:40px; padding:6px 12px;">🗑️</button></div>
+            </div>
+        `).join("");
+        document.querySelectorAll(".editProdBtn").forEach(btn => {
+            btn.onclick = () => { let prod=products.find(p=>p.id===btn.dataset.id); customPrompt("新名称", prod.name, (n) => { if(n) prod.name=n; customPrompt("新价格", prod.price, (pr) => { if(pr && !isNaN(parseFloat(pr))) prod.price=parseFloat(pr); customPrompt("库存数量", prod.stock, (s) => { if(s && !isNaN(parseInt(s))) prod.stock=parseInt(s); saveAll(); renderAdminGoods(); renderHome(); }); }); }); };
+        });
+        document.querySelectorAll(".toggleShelfBtn").forEach(btn => {
+            btn.onclick = () => { let prod=products.find(p=>p.id===btn.dataset.id); prod.onShelf=!prod.onShelf; saveAll(); renderAdminGoods(); renderHome(); };
+        });
+        document.querySelectorAll(".delProdBtn").forEach(btn => {
+            btn.onclick = () => { products=products.filter(p=>p.id!==btn.dataset.id); saveAll(); renderAdminGoods(); renderHome(); renderCartArea(); };
+        });
+    }
+
+    function renderAnnouncements() {
+        let div = document.getElementById("announceList");
+        if(div) div.innerHTML = announcements.map(a=>`📢 ${a}`).join("<br>") || "暂无公告";
+    }
+
+    // ==================== 角色切换 ====================
+    let currentRole = 'buyer';
+
+    function switchRole(role) {
+        currentRole = role;
+        let buyerPage = document.getElementById('buyerPage');
+        let adminPage = document.getElementById('adminPage');
+        if(role === 'buyer') {
+            buyerPage.style.display = 'block';
+            adminPage.style.display = 'none';
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.role-btn[data-role="buyer"]').classList.add('active');
+            // 显示买家首页
+            document.querySelectorAll('#buyerPage .subpage').forEach(p => p.style.display = 'none');
+            document.getElementById('buyerHomePage').style.display = 'block';
+            document.querySelectorAll('#buyerPage .bottom-nav .nav-item').forEach(nav => nav.classList.remove('active'));
+            document.querySelector('#buyerPage .bottom-nav .nav-item[data-subpage="buyerHome"]').classList.add('active');
+            renderHome();
+            updateBalanceDisplay();
+            renderCartArea();
+            updateBadge();
+            checkAndUpdateSignButton();
+        } else {
+            buyerPage.style.display = 'none';
+            adminPage.style.display = 'block';
+            document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.role-btn[data-role="admin"]').classList.add('active');
+            renderAdminGoods();
+            renderAdminOrders();
+            renderAnnouncements();
+            updateBalanceDisplay();
+        }
+    }
+
+    // 买家子页面切换
+    function switchBuyerSubpage(subpage) {
+        document.querySelectorAll('#buyerPage .subpage').forEach(p => p.style.display = 'none');
+        if(subpage === 'buyerHome') {
+            document.getElementById('buyerHomePage').style.display = 'block';
+            renderHome();
+        } else {
+            document.getElementById('buyerProfilePage').style.display = 'block';
+            renderCartArea();
+            updateBalanceDisplay();
+            checkAndUpdateSignButton();
+        }
+        document.querySelectorAll('#buyerPage .bottom-nav .nav-item').forEach(nav => nav.classList.remove('active'));
+        document.querySelector(`#buyerPage .bottom-nav .nav-item[data-subpage="${subpage}"]`).classList.add('active');
+    }
+
+    // ==================== 事件绑定 ====================
+    document.querySelectorAll('.role-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchRole(btn.dataset.role));
+    });
+    document.querySelectorAll('#buyerPage .bottom-nav .nav-item').forEach(btn => {
+        btn.addEventListener('click', () => switchBuyerSubpage(btn.dataset.subpage));
+    });
+
+    // 买家端按钮
+    document.getElementById("signinBtn")?.addEventListener("click", () => doSignIn());
+    document.getElementById("myCartBtn")?.addEventListener("click", () => switchBuyerSubpage('buyerProfile'));
+    document.getElementById("myOrdersBtn")?.addEventListener("click", () => { switchBuyerSubpage('buyerProfile'); renderProfileOrders(); });
+    document.getElementById("searchInput")?.addEventListener("input", () => renderHome());
+
+    // 商家端按钮
+    document.getElementById("addProductBtn")?.addEventListener("click", () => {
+        let name = document.getElementById("prodName").value;
+        let price = parseFloat(document.getElementById("prodPrice").value);
+        let desc = document.getElementById("prodDesc").value;
+        let stock = parseInt(document.getElementById("prodStock").value);
+        if(!name || isNaN(price)) { customAlert("填写完整信息"); return; }
+        let imgUrl = uploadedImage ? uploadedImage : "https://picsum.photos/id/42/200/200";
+        let newId = "p"+Date.now();
+        products.push({id:newId, name, price, img:imgUrl, desc:desc||"好物", stock:stock||0, onShelf:true});
+        saveAll(); renderHome(); renderAdminGoods(); customAlert("商品已添加");
+        document.getElementById("prodName").value = ""; document.getElementById("prodPrice").value = ""; document.getElementById("prodDesc").value = "";
+        uploadedImage = null; document.getElementById("imagePreview").style.display = "none"; document.getElementById("imagePreview").src = ""; 
+        if(document.querySelector("#uploadArea span")) document.querySelector("#uploadArea span").style.display = "inline"; 
+        document.getElementById("imageUpload").value = "";
+    });
+    document.getElementById("postAnnounceBtn")?.addEventListener("click", () => { let txt = document.getElementById("announceText").value; if(txt) announcements.unshift(txt); saveAll(); renderAnnouncements(); document.getElementById("announceText").value = ""; });
+    document.getElementById("addBalanceBtn")?.addEventListener("click", () => {
+        let amount = parseFloat(document.getElementById("balanceAmountInput").value);
+        if(isNaN(amount) || amount <= 0) { customAlert("请输入正数金额"); return; }
+        modifyBalance(amount, true);
+        document.getElementById("balanceAmountInput").value = "";
+    });
+    document.getElementById("subBalanceBtn")?.addEventListener("click", () => {
+        let amount = parseFloat(document.getElementById("balanceAmountInput").value);
+        if(isNaN(amount) || amount <= 0) { customAlert("请输入正数金额"); return; }
+        modifyBalance(amount, false);
+        document.getElementById("balanceAmountInput").value = "";
+    });
+
+    // 上传图片
+    const uploadArea = document.getElementById("uploadArea");
+    const imageUpload = document.getElementById("imageUpload");
+    const imagePreview = document.getElementById("imagePreview");
+    if(uploadArea) {
+        uploadArea.addEventListener("click", () => imageUpload.click());
+        imageUpload.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if(file && file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    uploadedImage = ev.target.result;
+                    imagePreview.src = uploadedImage;
+                    imagePreview.style.display = "block";
+                    if(uploadArea.querySelector("span")) uploadArea.querySelector("span").style.display = "none";
+                };
+                reader.readAsDataURL(file);
+            } else customAlert("请选择图片文件");
+        });
+    }
+
+    // 弹窗
+    document.getElementById("detailModal")?.addEventListener("click", (e) => { if(e.target === document.getElementById("detailModal")) document.getElementById("detailModal").classList.remove("show"); });
+    document.getElementById("modalAddCart")?.addEventListener("click", () => { if(currentModalProduct){ addToCartById(currentModalProduct.id); customAlert("已加入购物车"); document.getElementById("detailModal").classList.remove("show"); renderCartArea(); } });
+    document.getElementById("modalBuyNow")?.addEventListener("click", () => { if(currentModalProduct){ directBuy(currentModalProduct.id); document.getElementById("detailModal").classList.remove("show"); } });
+
+    // 初始化
+    setTimeout(() => document.querySelector(".splash-screen").style.display = "none", 1500);
+    switchRole('buyer');
+</script>
+</body>
+</html>
